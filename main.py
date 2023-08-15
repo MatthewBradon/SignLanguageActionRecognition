@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import os
+import shutil
 import matplotlib.pyplot as plt
 import time
 import mediapipe as mp
@@ -71,7 +72,12 @@ model.add(Dense(actions.shape[0], activation="softmax")) #Dense layer with 3 neu
 #Compile the model categorical_crossentropy because we have more than 2 classes
 model.compile(optimizer="Adam", loss="categorical_crossentropy", metrics=["categorical_accuracy"])
 
-menuInput = str(input("1 to create new sign, 2 to record new training data for all signs, 3 to train new model, 4 to run model:"))
+menuInput = str(input("1 to create new sign\n" + 
+                      "2 delete sign\n" +
+                      "3 to record new training data for all signs\n" +
+                      "4 to train new model\n" +
+                      "5 to run model\n" +
+                      "Enter input: "))
 #Create new sign
 if menuInput == "1":
     newSignName = str(input("Enter name of new sign: "))
@@ -125,8 +131,25 @@ if menuInput == "1":
                 cv2.imshow("Sign Language Detection", image)
                 cv2.waitKey(1)
 
-
 elif menuInput == "2":
+    
+    deleteSignName = str(input("Enter name of sign to delete: "))
+
+    if deleteSignName not in actions:
+        print("Sign does not exist")
+        exit()
+    #Delete sign from actions
+    actions = np.delete(actions, np.where(actions == deleteSignName))
+    with open("actions.txt", "w") as f:
+        for action in actions:
+            f.write(action + "\n")
+        print("Sign deleted")
+    f.close()
+    #Delete folder for sign
+    shutil.rmtree(os.path.join(DATA_PATH, deleteSignName))
+    print("Folder deleted")
+
+elif menuInput == "3":
     #Create folders for each action 30 sequences of 30 frames each
     for action in actions:
         #Create subfolders for each sequence
@@ -175,7 +198,7 @@ elif menuInput == "2":
     capture.release()
     cv2.destroyAllWindows()
 
-elif menuInput == "3":
+elif menuInput == "4":
     #Map actions to numbers
     label_map = {label:num for num, label in enumerate(actions)} 
     sequences, labels = [], []
@@ -201,7 +224,7 @@ elif menuInput == "3":
     # #Evaluate the model
     model.save("action.h5")
 
-elif menuInput == "4":
+elif menuInput == "5":
     #Load the model
     model.load_weights("action.h5")
     
