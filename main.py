@@ -71,10 +71,16 @@ model.add(Dense(actions.shape[0], activation="softmax")) #Dense layer with 3 neu
 #Compile the model categorical_crossentropy because we have more than 2 classes
 model.compile(optimizer="Adam", loss="categorical_crossentropy", metrics=["categorical_accuracy"])
 
-menuInput = str(input("Enter 1 to create new sign, 2 to record new training data for all signs, 3 to train new model, 4 to run model:"))
+menuInput = str(input("1 to create new sign, 2 to record new training data for all signs, 3 to train new model, 4 to run model:"))
 #Create new sign
 if menuInput == "1":
     newSignName = str(input("Enter name of new sign: "))
+    if " " in newSignName:
+        print("Sign name cannot contain spaces")
+        exit()
+    if newSignName in actions:
+        print("Sign already exists")
+        exit()
     actions = np.append(actions, newSignName)
     with open("actions.txt", "w") as f:
         for action in actions:
@@ -85,8 +91,9 @@ if menuInput == "1":
 
     with mpHolistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
         for sequence in range(no_sequences):
+            print("Test")
             try:
-                (os.path.join(DATA_PATH, newSignName, str(sequence)))
+                os.makedirs(os.path.join(DATA_PATH, newSignName, str(sequence)))
             except:
                 pass
             #Loop through each frame in the sequence
