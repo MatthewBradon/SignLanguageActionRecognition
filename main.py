@@ -52,7 +52,8 @@ capture = cv2.VideoCapture(0)
 DATA_PATH = os.path.join("MP_Data")
 
 #Actions that we try to detect
-actions = np.array(['hello', 'thanks', 'iloveyou'])
+actions = np.array(open("actions.txt", "r").read().splitlines())
+#actions = np.array(['hello', 'thanks', 'iloveyou'])
 no_sequences = 30 #Number of sequences per action
 sequence_length = 30 #Number of frames per sequence
 
@@ -70,9 +71,55 @@ model.add(Dense(actions.shape[0], activation="softmax")) #Dense layer with 3 neu
 #Compile the model categorical_crossentropy because we have more than 2 classes
 model.compile(optimizer="Adam", loss="categorical_crossentropy", metrics=["categorical_accuracy"])
 
-menuInput = str(input("Enter 1 to record new training data, 2 to train new model, 3 to run model:"))
-#Record new training data
+menuInput = str(input("Enter 1 to create new sign, 2 to record new training data for all signs, 3 to train new model, 4 to run model:"))
+#Create new sign
 if menuInput == "1":
+    newSignName = str(input("Enter name of new sign: "))
+    actions = np.append(actions, newSignName)
+    with open("actions.txt", "w") as f:
+        for action in actions:
+            f.write(action + "\n")
+        print("New sign created")
+    f.close()
+    #Create folder for new sign
+
+    with mpHolistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
+        for sequence in range(no_sequences):
+            try:
+                (os.path.join(DATA_PATH, newSignName, str(sequence)))
+            except:
+                pass
+            #Loop through each frame in the sequence
+            for frameNo in range(sequence_length):
+
+                #hasRead is a boolean regarding whether or not there was a return at all, frame is each frame that is returned
+                hasRead, frame = capture.read()
+
+                #Detections
+                image, results = mediapipeDetection(frame, holistic)
+
+                #Draw Landmarks
+                drawLandmarks(image, results)
+
+                #Apply wait logic
+                if frameNo == 0:
+                    cv2.putText(image, "STARTING COLLECTION", (120,200), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 4, cv2.LINE_AA)
+                    cv2.putText(image, "Collecting frames for {} Video Number {}".format(newSignName, sequence), (15,12), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 1, cv2.LINE_AA)
+                    cv2.waitKey(2000)
+                else:
+                    cv2.putText(image, "Collecting frames for {} Video Number {}".format(newSignName, sequence), (15,12), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 1, cv2.LINE_AA)
+
+                #Export keypoints
+                keypoints = extractLandmarkCoordinates(results)
+                npyPath = os.path.join(DATA_PATH, newSignName, str(sequence), str(frameNo))
+                np.save(npyPath, keypoints)
+
+                #Show to screen
+                cv2.imshow("Sign Language Detection", image)
+                cv2.waitKey(1)
+
+
+elif menuInput == "2":
     #Create folders for each action 30 sequences of 30 frames each
     for action in actions:
         #Create subfolders for each sequence
@@ -121,7 +168,7 @@ if menuInput == "1":
     capture.release()
     cv2.destroyAllWindows()
 
-elif menuInput == "2":
+elif menuInput == "3":
     #Map actions to numbers
     label_map = {label:num for num, label in enumerate(actions)} 
     sequences, labels = [], []
@@ -147,7 +194,7 @@ elif menuInput == "2":
     # #Evaluate the model
     model.save("action.h5")
 
-elif menuInput == "3":
+elif menuInput == "4":
     #Load the model
     model.load_weights("action.h5")
     
@@ -187,7 +234,7 @@ elif menuInput == "3":
                 if len(sentence) > 5:
                     sentence = sentence[-5:]
                 
-                image = confidenceVisual(result, actions, image, [(245, 117, 16), (117, 245, 16), (16, 117, 245)])
+                image = confidenceVisual(result, actions, image, [(245, 117, 16), (117, 245, 16), (16, 117, 245), (16, 245, 117)])
 
 
 
@@ -205,4 +252,3 @@ elif menuInput == "3":
                 
     capture.release()
     cv2.destroyAllWindows()
-
