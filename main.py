@@ -20,7 +20,7 @@ def mediapipeDetection(image, model):
     return image, results
 
 def drawLandmarks(image, results):
-    mpDrawing.draw_landmarks(image, results.face_landmarks, mpHolistic.FACEMESH_TESSELATION) #Draw face connections
+    #mpDrawing.draw_landmarks(image, results.face_landmarks, mpHolistic.FACEMESH_TESSELATION) #Draw face connections
     mpDrawing.draw_landmarks(image, results.pose_landmarks, mpHolistic.POSE_CONNECTIONS) #Draw pose connections
     mpDrawing.draw_landmarks(image, results.left_hand_landmarks, mpHolistic.HAND_CONNECTIONS) #Draw left hand connections
     mpDrawing.draw_landmarks(image, results.right_hand_landmarks, mpHolistic.HAND_CONNECTIONS) #Draw right hand connections
@@ -30,9 +30,9 @@ def extractLandmarkCoordinates(points):
     pose = np.array([[point.x, point.y, point.z, point.visibility] for point in points.pose_landmarks.landmark]).flatten() if points.pose_landmarks else np.zeros(33*4) #33 keypoints, each with 4 values
     leftHand = np.array([[point.x, point.y, point.z] for point in points.left_hand_landmarks.landmark]).flatten() if points.left_hand_landmarks else np.zeros(21*3) #21 keypoints, each with 3 values
     rightHand = np.array([[point.x, point.y, point.z] for point in points.right_hand_landmarks.landmark]).flatten() if points.right_hand_landmarks else np.zeros(21*3) #21 keypoints, each with 3 values
-    face = np.array([[point.x, point.y, point.z] for point in points.face_landmarks.landmark]).flatten() if points.face_landmarks else np.zeros(468*3) #468 keypoints, each with 3 values
+    #face = np.array([[point.x, point.y, point.z] for point in points.face_landmarks.landmark]).flatten() if points.face_landmarks else np.zeros(468*3) #468 keypoints, each with 3 values
 
-    return np.concatenate([pose, face, leftHand, rightHand])    
+    return np.concatenate([pose, leftHand, rightHand])    
 
 def confidenceVisual(result, actions, inputFrame, colors):
     outputFrame = inputFrame.copy()
@@ -60,7 +60,7 @@ sequence_length = 30 #Number of frames per sequence
 model = Sequential()    #Sequential model
 
 #LSTM layer with 64 neurons, return sequences is true because we are stacking LSTM layers. Input shape is 30 sequences of 1662 value
-model.add(LSTM(64, return_sequences=True, activation="relu", input_shape=(30,1662)))
+model.add(LSTM(64, return_sequences=True, activation="relu", input_shape=(30,258)))
 model.add(LSTM(128, return_sequences=True, activation="relu")) #LSTM layer with 128 neurons
 model.add(LSTM(64, return_sequences=False, activation="relu")) #LSTM layer with 64 neurons
 model.add(Dense(64, activation="relu")) #Dense layer with 64 neurons
@@ -254,6 +254,7 @@ elif menuInput == "5":
                 image = np.load(os.path.join(DATA_PATH, action, str(sequence), "{}.npy".format(frameNo)))
                 window.append(image)
             sequences.append(window)
+            print(len(sequences))
             labels.append(label_map[action])
     npSequenceArray = np.array(sequences)
     npSequenceLabels = to_categorical(labels).astype(int)
