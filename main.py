@@ -2,8 +2,6 @@ import cv2
 import numpy as np
 import os
 import shutil
-import matplotlib.pyplot as plt
-import time
 import mediapipe as mp
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, multilabel_confusion_matrix
@@ -72,11 +70,13 @@ model.add(Dense(actions.shape[0], activation="softmax")) #Dense layer with 3 neu
 #Compile the model categorical_crossentropy because we have more than 2 classes
 model.compile(optimizer="Adam", loss="categorical_crossentropy", metrics=["categorical_accuracy"])
 
-menuInput = str(input("1 to create new sign\n" + 
-                      "2 delete sign\n" +
-                      "3 to record new training data for all signs\n" +
-                      "4 to train new model\n" +
-                      "5 to run model\n" +
+menuInput = str(input("1 To create new sign\n" + 
+                      "2 Delete sign\n" +
+                      "3 Record training data for specific sign\n" +
+                      "4 Record new training data for all signs\n" +
+                      "5 Train new model\n" +
+                      "6 Run model\n" +
+                      
                       "Enter input: "))
 #Create new sign
 if menuInput == "1":
@@ -150,6 +150,50 @@ elif menuInput == "2":
     print("Folder deleted")
 
 elif menuInput == "3":
+    #Edits specific sign
+    editSignName = input("Enter the name of the sign you want to edit: ")
+    if editSignName not in actions:
+        print("Sign not found")
+        exit()
+    
+    #Record new data for sign
+    with mpHolistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
+        for sequence in range(no_sequences):
+            #Loop through each frame in the sequence
+            for frameNo in range(sequence_length):
+
+                #hasRead is a boolean regarding whether or not there was a return at all, frame is each frame that is returned
+                hasRead, frame = capture.read()
+
+                #Detections
+                image, results = mediapipeDetection(frame, holistic)
+
+                #Draw Landmarks
+                drawLandmarks(image, results)
+
+                #Apply wait logic
+                if frameNo == 0:
+                    cv2.putText(image, "STARTING COLLECTION", (120,200), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 4, cv2.LINE_AA)
+                    cv2.putText(image, "Collecting frames for {} Video Number {}".format(editSignName, sequence), (15,125), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 4, cv2.LINE_AA)
+                    cv2.waitKey(2000)
+                else:
+                    cv2.putText(image, "Collecting frames for {} Video Number {}".format(editSignName, sequence), (15,125), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
+                
+                #Export keypoints
+                keypoints = extractLandmarkCoordinates(results)
+                npyPath = os.path.join(DATA_PATH, editSignName, str(sequence), str(frameNo))
+                np.save(npyPath, keypoints)
+
+                
+
+                #Show to screen
+                cv2.imshow("OpenCV Feed", image)
+
+                # Press "q" to exit
+                if cv2.waitKey(10) & 0xFF == ord('q'):
+                    break
+
+elif menuInput == "4":
     #Create folders for each action 30 sequences of 30 frames each
     for action in actions:
         #Create subfolders for each sequence
@@ -198,7 +242,7 @@ elif menuInput == "3":
     capture.release()
     cv2.destroyAllWindows()
 
-elif menuInput == "4":
+elif menuInput == "5":
     #Map actions to numbers
     label_map = {label:num for num, label in enumerate(actions)} 
     sequences, labels = [], []
@@ -221,10 +265,10 @@ elif menuInput == "4":
 
     model.fit(x_train, y_train, epochs=100, callbacks=[tbCallback])
 
-    # #Evaluate the model
+    #Save the model
     model.save("action.h5")
 
-elif menuInput == "5":
+elif menuInput == "6":
     #Load the model
     model.load_weights("action.h5")
     
